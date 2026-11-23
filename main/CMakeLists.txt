@@ -4,15 +4,6 @@ set(SOURCES "audio/audio_codec.cc"
             "audio/audio_service.cc"
             "audio/demuxer/ogg_demuxer.cc"
             "audio/codecs/no_audio_codec.cc"
-            "audio/codecs/box_audio_codec.cc"
-            "audio/codecs/es8311_audio_codec.cc"
-            "audio/codecs/es8374_audio_codec.cc"
-            "audio/codecs/es8388_audio_codec.cc"
-            "audio/codecs/es8389_audio_codec.cc"
-            "audio/codecs/dummy_audio_codec.cc"
-            "led/single_led.cc"
-            "led/circular_strip.cc"
-            "led/gpio_led.cc"
             "display/display.cc"
             "display/text_glyph.cc"
             "display/lcd_display.cc"
@@ -48,21 +39,11 @@ set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg"
 list(APPEND SOURCES
     "boards/common/board.cc"
     "boards/common/wifi_board.cc"
-    "boards/common/adc_battery_monitor.cc"
-    "boards/common/axp2101.cc"
-    "boards/common/backlight.cc"
     "boards/common/button.cc"
-    "boards/common/i2c_device.cc"
-    "boards/common/knob.cc"
     "boards/common/power_save_timer.cc"
-    "boards/common/press_to_talk_mcp_tool.cc"
     "boards/common/sleep_timer.cc"
-    "boards/common/sy6970.cc"
     "boards/common/system_reset.cc"
 )
-if(CONFIG_XIAOZHI_NETWORK_ETHERNET)
-    list(APPEND SOURCES "boards/common/ethernet_board.cc")
-endif()
 list(APPEND INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/boards/common)
 
 
@@ -131,20 +112,10 @@ file(GLOB BOARD_SOURCES
 )
 list(APPEND SOURCES ${BOARD_SOURCES})
 
-# Select one audio engine for each chip family
-if(CONFIG_IDF_TARGET_ESP32S3 OR CONFIG_IDF_TARGET_ESP32P4 OR CONFIG_IDF_TARGET_ESP32S31)
-    list(APPEND SOURCES "audio/engines/afe_audio_engine.cc")
-    list(APPEND SOURCES "audio/wake_words/custom_wake_word.cc")
-    list(APPEND SOURCES "audio/wake_words/wake_word_audio_cache.cc")
-else()
-    list(APPEND SOURCES "audio/engines/lite_audio_engine.cc")
-    list(APPEND SOURCES "audio/wake_words/esp_wake_word.cc")
-endif()
-
-# Auto Select Additional Sources
-if (CONFIG_USE_ESP_BLUFI_WIFI_PROVISIONING)
-    list(APPEND SOURCES "boards/common/blufi.cpp")
-endif ()
+# Audio engine for ESP32-S3
+list(APPEND SOURCES "audio/engines/afe_audio_engine.cc")
+list(APPEND SOURCES "audio/wake_words/custom_wake_word.cc")
+list(APPEND SOURCES "audio/wake_words/wake_word_audio_cache.cc")
 # Select language directory according to Kconfig
 if(CONFIG_LANGUAGE_ZH_CN)
     set(LANG_DIR "zh-CN")
