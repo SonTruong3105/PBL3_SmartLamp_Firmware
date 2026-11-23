@@ -41,7 +41,8 @@ void McpServer::AddCommonTools() {
 
     // Do not add custom tools here.
     // Custom tools must be added in the board's InitializeTools function.
-
+    // NOTE: Lamp tools (Lamp.*) are registered by my-custom-board.cc — do NOT
+    // duplicate ghost self.lamp.* tools here (they cause the LLM to pick a no-op).
     AddTool("self.get_device_status",
         "Provides the real-time information of the device, including the current status of the audio speaker, screen, battery, network, etc.\n"
         "Use this tool for: \n"

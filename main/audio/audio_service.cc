@@ -66,6 +66,8 @@ void AudioService::Initialize(AudioCodec* codec) {
         decoder_frame_size_ = decoder_sample_rate_ / 1000 * OPUS_FRAME_DURATION_MS;
     }
     esp_opus_enc_config_t opus_enc_cfg = AS_OPUS_ENC_CONFIG();
+    // Giữ default upstream (bitrate/complexity từ macro) — tăng bitrate không lọc được nhiễu,
+    // chỉ làm to băng thông. Nhiễu quạt được xử lý ở AFE (NS/VAD).
     ret = esp_opus_enc_open(&opus_enc_cfg, sizeof(esp_opus_enc_config_t), &opus_encoder_);
     if (opus_encoder_ == nullptr) {
         ESP_LOGE(TAG, "Failed to create audio encoder, error code: %d", ret);

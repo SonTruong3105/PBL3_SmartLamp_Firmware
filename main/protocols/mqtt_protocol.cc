@@ -2,7 +2,7 @@
 #include "application.h"
 #include "board.h"
 #include "settings.h"
-
+#include "system_info.h"
 #include <esp_log.h>
 #include <arpa/inet.h>
 #include <cstring>
@@ -108,6 +108,32 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
             on_connected_();
         }
         esp_timer_stop(reconnect_timer_);
+
+        // Keep MQTT online for device control/telemetry. Audio UDP remains
+        // opened lazily by OpenAudioChannel().
+        const std::string suffix = "/up";
+        if (publish_topic_.size() >= suffix.size() &&
+            publish_topic_.compare(publish_topic_.size() - suffix.size(), suffix.size(), suffix) == 0) {
+            const std::string down_topic = publish_topic_.substr(0, publish_topic_.size() - suffix.size()) + "/down";
+            if (!mqtt_->Subscribe(down_topic)) {
+                ESP_LOGE(TAG, "Failed subscribing control topic: %s", down_topic.c_str());
+                return;
+            }
+        } else {
+            ESP_LOGE(TAG, "Unexpected MQTT publish topic: %s", publish_topic_.c_str());
+            return;
+        }
+
+        cJSON* online = cJSON_CreateObject();
+        cJSON_AddStringToObject(online, "type", "device_online");
+        cJSON_AddStringToObject(online, "device_id", SystemInfo::GetMacAddress().c_str());
+        cJSON_AddNumberToObject(online, "protocol_version", 1);
+        char* payload = cJSON_PrintUnformatted(online);
+        if (payload != nullptr) {
+            SendText(payload);
+            cJSON_free(payload);
+        }
+        cJSON_Delete(online);
     });
 
     mqtt_->OnMessage([this](const std::string& topic, const std::string& payload) {
@@ -125,6 +151,8 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
 
         if (strcmp(type->valuestring, "hello") == 0) {
             ParseServerHello(root);
+        } else if (strcmp(type->valuestring, "device_online_ack") == 0) {
+            ESP_LOGI(TAG, "Device control channel registered");
         } else if (strcmp(type->valuestring, "goodbye") == 0) {
             auto session_id = cJSON_GetObjectItem(root, "session_id");
             ESP_LOGI(TAG, "Received goodbye message, session_id: %s",
@@ -163,6 +191,19 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
 
     ESP_LOGI(TAG, "Connected to endpoint");
     return true;
+}
+
+bool MqttProtocol::SendDeviceHeartbeat() {
+    if (mqtt_ == nullptr || !mqtt_->IsConnected()) return false;
+    cJSON* root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "type", "device_heartbeat");
+    cJSON_AddStringToObject(root, "device_id", SystemInfo::GetMacAddress().c_str());
+    cJSON_AddNumberToObject(root, "protocol_version", 1);
+    char* payload = cJSON_PrintUnformatted(root);
+    const bool sent = payload != nullptr && mqtt_->Publish(publish_topic_, payload);
+    if (payload != nullptr) cJSON_free(payload);
+    cJSON_Delete(root);
+    return sent;
 }
 
 bool MqttProtocol::SendText(const std::string& text) {

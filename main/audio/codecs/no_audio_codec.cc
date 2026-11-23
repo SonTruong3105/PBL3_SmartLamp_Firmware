@@ -207,6 +207,9 @@ NoAudioCodecSimplex::NoAudioCodecSimplex(int input_sample_rate, int output_sampl
     ESP_ERROR_CHECK(i2s_new_channel(&chan_cfg, nullptr, &rx_handle_));
     std_cfg.clk_cfg.sample_rate_hz = (uint32_t)input_sample_rate_;
     std_cfg.slot_cfg.slot_mask = mic_slot_mask;
+    if (mic_slot_mask == I2S_STD_SLOT_BOTH) {
+        std_cfg.slot_cfg.slot_mode = I2S_SLOT_MODE_STEREO;
+    }
     std_cfg.gpio_cfg.bclk = mic_sck;
     std_cfg.gpio_cfg.ws = mic_ws;
     std_cfg.gpio_cfg.dout = I2S_GPIO_UNUSED;
@@ -220,10 +223,12 @@ int NoAudioCodec::Write(const int16_t* data, int samples) {
     std::vector<int32_t> buffer(samples);
 
     // output_volume_: 0-100
-    // volume_factor_: 0-65536
-    int32_t volume_factor = pow(double(output_volume_) / 100.0, 2) * 65536;
+    // Sử dụng đường cong tuyến tính kết hợp hệ số tăng cường kSoftwareGainBoost (1.5x)
+    constexpr double kSoftwareGainBoost = 1.5;
+    int64_t volume_factor = static_cast<int64_t>((double(output_volume_) / 100.0) * 65536.0 * kSoftwareGainBoost);
+
     for (int i = 0; i < samples; i++) {
-        int64_t temp = int64_t(data[i]) * volume_factor; // 使用 int64_t 进行乘法运算
+        int64_t temp = int64_t(data[i]) * volume_factor; // Sử dụng int64_t để tránh tràn số khi nhân
         if (temp > INT32_MAX) {
             buffer[i] = INT32_MAX;
         } else if (temp < INT32_MIN) {

@@ -838,8 +838,12 @@ elseif(CONFIG_BOARD_TYPE_LCDWIKI_ES3C35P)
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_20_4)
     set(BUILTIN_ICON_FONT font_material_symbols_20_4)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_128)
+elseif(CONFIG_BOARD_TYPE_MY_CUSTOM_BOARD)
+    set(BOARD_DIR "my-custom-board")
+    set(BUILTIN_TEXT_FONT font_noto_sans_basic_20_4)
+    set(BUILTIN_ICON_FONT font_material_symbols_20_4)
+    set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
 endif()
-
 if(NOT BOARD_DIR AND NOT CMAKE_BUILD_EARLY_EXPANSION)
     message(FATAL_ERROR "The selected board does not define BOARD_DIR")
 endif()
@@ -1057,6 +1061,20 @@ if(CONFIG_BOARD_TYPE_ESP32_P4_FUNCTION_EV_BOARD)
     list(APPEND MAIN_PRIV_REQUIRES_EXTRA
         esp_driver_sdmmc
         sdmmc
+    )
+endif()
+if(CONFIG_BOARD_TYPE_MY_CUSTOM_BOARD)
+    list(APPEND SOURCES
+        "boards/my-custom-board/io/button_handler.cc"
+        "boards/my-custom-board/io/led_control.cc"
+        "boards/my-custom-board/sensors/dust_sensor.cc"
+        "boards/my-custom-board/sensors/i2c_sensors.cc"
+        "boards/my-custom-board/sensors/radar_sensor.cc"
+        "boards/my-custom-board/font_vi_13.c"  # ⭐ THÊM DÒNG NÀY
+        "boards/my-custom-board/font_vi_24.c"  # ⭐ THÊM DÒNG NÀY
+    )
+    list(APPEND MAIN_PRIV_REQUIRES_EXTRA
+        esp_driver_adc
     )
 endif()
 idf_component_register(SRCS ${SOURCES}
