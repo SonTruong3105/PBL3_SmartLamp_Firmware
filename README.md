@@ -185,3 +185,5 @@ xiaozhi-esp32/
   - Kiến trúc nền tảng và Audio/WebSocket pipeline kế thừa từ dự án mã nguồn mở [XiaoZhi ESP32](https://github.com/78/xiaozhi-esp32).
   - Giao thức điều khiển thiết bị: [Model Context Protocol (MCP)](https://modelcontextprotocol.io/).
   - Thư viện đồ họa nhúng: [LVGL 9.x](https://lvgl.io/).
+#   P B L 3 _ S m a r t L a m p _ F i r m w a r e  
+ 
