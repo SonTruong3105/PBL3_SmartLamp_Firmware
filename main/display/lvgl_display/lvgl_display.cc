@@ -312,6 +312,23 @@ void LvglDisplay::SetPowerSaveMode(bool on) {
     }
 }
 
+#if CONFIG_LV_USE_SNAPSHOT
+extern "C" bool image_to_jpeg_cb(uint8_t* src, size_t src_len, uint16_t width, uint16_t height,
+                                 uint32_t format, uint8_t quality,
+                                 size_t (*cb)(void* arg, size_t index, const void* data, size_t len),
+                                 void* arg) {
+    (void)src;
+    (void)src_len;
+    (void)width;
+    (void)height;
+    (void)format;
+    (void)quality;
+    (void)cb;
+    (void)arg;
+    return false;
+}
+#endif
+
 bool LvglDisplay::SnapshotToJpeg(std::string& jpeg_data, int quality) {
 #if CONFIG_LV_USE_SNAPSHOT
     DisplayLockGuard lock(this);

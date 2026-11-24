@@ -21,6 +21,7 @@
 #include <vector>
 #include <sstream>
 #include <algorithm>
+#include <utility>
 
 #define TAG "Ota"
 
@@ -56,6 +57,10 @@ std::unique_ptr<Http> Ota::SetupHttp() {
     auto& board = Board::GetInstance();
     auto network = board.GetNetwork();
     auto http = network->CreateHttp(0);
+    if (http == nullptr) {
+        ESP_LOGE(TAG, "Failed to create HTTP client");
+        return nullptr;
+    }
     auto user_agent = SystemInfo::GetUserAgent();
     http->SetHeader("Activation-Version", has_serial_number_ ? "2" : "1");
     http->SetHeader("Device-Id", SystemInfo::GetMacAddress().c_str());
@@ -68,11 +73,11 @@ std::unique_ptr<Http> Ota::SetupHttp() {
     http->SetHeader("Accept-Language", Lang::CODE);
     http->SetHeader("Content-Type", "application/json");
 
-    return http;
+    return std::unique_ptr<Http>(http);
 }
 
 /* 
- * Specification: https://ccnphfhqs21z.feishu.cn/wiki/FjW6wZmisimNBBkov6OcmfvknVd
+- Specification: https://ccnphfhqs21z.feishu.cn/wiki/FjW6wZmisimNBBkov6OcmfvknVd
  */
 esp_err_t Ota::CheckVersion() {
     auto& board = Board::GetInstance();
@@ -89,21 +94,24 @@ esp_err_t Ota::CheckVersion() {
     }
 
     auto http = SetupHttp();
+    if (http == nullptr) {
+        return ESP_FAIL;
+    }
 
     std::string data = board.GetSystemInfoJson();
     std::string method = data.length() > 0 ? "POST" : "GET";
     http->SetContent(std::move(data));
 
     if (!http->Open(method, url)) {
-        int last_error = http->GetLastError();
-        ESP_LOGE(TAG, "Failed to open HTTP connection, code=0x%x", last_error);
-        return last_error;
+        ESP_LOGE(TAG, "Failed to open HTTP connection");
+        return ESP_FAIL;
     }
 
-    auto status_code = http->GetStatusCode();
+    int status_code = http->GetStatusCode();
     if (status_code != 200) {
         ESP_LOGE(TAG, "Failed to check version, status code: %d", status_code);
-        return status_code;
+        http->Close();
+        return ESP_FAIL;
     }
 
     data = http->ReadAll();
@@ -278,20 +286,27 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
     std::string image_header;
 
     auto network = Board::GetInstance().GetNetwork();
-    auto http = network->CreateHttp(0);
+    std::unique_ptr<Http> http(network->CreateHttp(0));
+    if (http == nullptr) {
+        ESP_LOGE(TAG, "Failed to create HTTP client");
+        return false;
+    }
     if (!http->Open("GET", firmware_url)) {
         ESP_LOGE(TAG, "Failed to open HTTP connection");
         return false;
     }
 
-    if (http->GetStatusCode() != 200) {
-        ESP_LOGE(TAG, "Failed to get firmware, status code: %d", http->GetStatusCode());
+    int status_code = http->GetStatusCode();
+    if (status_code != 200) {
+        ESP_LOGE(TAG, "Failed to get firmware, status code: %d", status_code);
+        http->Close();
         return false;
     }
 
     size_t content_length = http->GetBodyLength();
     if (content_length == 0) {
         ESP_LOGE(TAG, "Failed to get content length");
+        http->Close();
         return false;
     }
 
@@ -299,6 +314,7 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
     char* buffer = (char*)heap_caps_malloc(PAGE_SIZE, MALLOC_CAP_INTERNAL);
     if (buffer == nullptr) {
         ESP_LOGE(TAG, "Failed to allocate buffer");
+        http->Close();
         return false;
     }
 
@@ -310,6 +326,7 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
         if (ret < 0) {
             ESP_LOGE(TAG, "Failed to read HTTP data: %s", esp_err_to_name(ret));
             heap_caps_free(buffer);
+            http->Close();
             return false;
         }
 
@@ -337,6 +354,7 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
                     esp_ota_abort(update_handle);
                     ESP_LOGE(TAG, "Failed to begin OTA");
                     heap_caps_free(buffer);
+                    http->Close();
                     return false;
                 }
 
@@ -353,6 +371,7 @@ bool Ota::Upgrade(const std::string& firmware_url, std::function<void(int progre
                 ESP_LOGE(TAG, "Failed to write OTA data: %s", esp_err_to_name(err));
                 esp_ota_abort(update_handle);
                 heap_caps_free(buffer);
+                http->Close();
                 return false;
             }
 
@@ -469,6 +488,9 @@ esp_err_t Ota::Activate() {
     }
 
     auto http = SetupHttp();
+    if (http == nullptr) {
+        return ESP_FAIL;
+    }
 
     std::string data = GetActivationPayload();
     http->SetContent(std::move(data));
@@ -478,15 +500,18 @@ esp_err_t Ota::Activate() {
         return ESP_FAIL;
     }
     
-    auto status_code = http->GetStatusCode();
+    int status_code = http->GetStatusCode();
     if (status_code == 202) {
+        http->Close();
         return ESP_ERR_TIMEOUT;
     }
     if (status_code != 200) {
         ESP_LOGE(TAG, "Failed to activate, code: %d, body: %s", status_code, http->ReadAll().c_str());
+        http->Close();
         return ESP_FAIL;
     }
 
+    http->Close();
     ESP_LOGI(TAG, "Activation successful");
     return ESP_OK;
 }

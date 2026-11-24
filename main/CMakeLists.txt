@@ -17,8 +17,8 @@ set(SOURCES "audio/audio_codec.cc"
             "display/lvgl_display/lvgl_image.cc"
             "display/lvgl_display/gif/lvgl_gif.cc"
             "display/lvgl_display/gif/gifdec.c"
-            "display/lvgl_display/jpg/image_to_jpeg.cpp"
-            "display/lvgl_display/jpg/jpeg_to_image.c"
+            # "display/lvgl_display/jpg/image_to_jpeg.cpp"
+            # "display/lvgl_display/jpg/jpeg_to_image.c"
             "protocols/protocol.cc"
             "protocols/text_glyph_payload.cc"
             "protocols/mqtt_protocol.cc"
@@ -37,6 +37,7 @@ set(INCLUDE_DIRS "." "display" "display/lvgl_display" "display/lvgl_display/jpg"
 
 # Add board common files
 list(APPEND SOURCES
+    "boards/common/backlight.cc"
     "boards/common/board.cc"
     "boards/common/wifi_board.cc"
     "boards/common/button.cc"
@@ -243,7 +244,7 @@ endif()
 
 # Camera/Video/RNDIS not used in single-board config
 
-set(MAIN_PRIV_REQUIRES_EXTRA esp_driver_adc)
+set(MAIN_PRIV_REQUIRES_EXTRA esp_adc)
 list(APPEND SOURCES
     "boards/my-custom-board/io/button_handler.cc"
     "boards/my-custom-board/io/led_control.cc"
@@ -257,6 +258,22 @@ idf_component_register(SRCS ${SOURCES}
                     EMBED_FILES ${LANG_SOUNDS} ${COMMON_SOUNDS}
                     INCLUDE_DIRS ${INCLUDE_DIRS}
                     WHOLE_ARCHIVE
+                    REQUIRES
+                        78__esp-ml307
+                        78__esp-wifi-connect
+                        espressif__button
+                        espressif__led_strip
+                        espressif__esp-sr
+                        espressif__esp_audio_codec
+                        espressif__esp_codec_dev
+                        espressif__esp_lvgl_port
+                        espressif__esp_lcd_touch
+                        espressif__esp_mmap_assets
+                        espressif__esp_new_jpeg
+                        espressif__cjson
+                        espressif2022__esp_emote_expression
+                        espressif2022__esp_emote_gfx
+                        lvgl__lvgl
                     PRIV_REQUIRES
                         esp_pm
                         esp_psram

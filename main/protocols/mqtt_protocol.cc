@@ -91,7 +91,7 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
     }
 
     auto network = Board::GetInstance().GetNetwork();
-    mqtt_ = network->CreateMqtt(0);
+    mqtt_.reset(network->CreateMqtt(0));
     mqtt_->SetKeepAlive(keepalive_interval);
 
     mqtt_->OnDisconnected([this]() {
@@ -184,7 +184,7 @@ bool MqttProtocol::StartMqttClient(bool report_error) {
         broker_address = endpoint;
     }
     if (!mqtt_->Connect(broker_address, broker_port, client_id, username, password)) {
-        ESP_LOGE(TAG, "Failed to connect to endpoint, code=%d", mqtt_->GetLastError());
+        ESP_LOGE(TAG, "Failed to connect to endpoint");
         SetError(Lang::Strings::SERVER_NOT_CONNECTED);
         return false;
     }
@@ -307,9 +307,9 @@ bool MqttProtocol::OpenAudioChannel() {
     auto udp = network->CreateUdp(2);
     udp->OnMessage([this](const std::string& data) {
         /*
-         * UDP Encrypted OPUS Packet Format:
-         * |type 1u|flags 1u|payload_len 2u|ssrc 4u|timestamp 4u|sequence 4u|
-         * |payload payload_len|
+- UDP Encrypted OPUS Packet Format:
+- |type 1u|flags 1u|payload_len 2u|ssrc 4u|timestamp 4u|sequence 4u|
+- |payload payload_len|
          */
         constexpr size_t kAudioHeaderSize = 16;
         if (data.size() < kAudioHeaderSize) {
@@ -380,7 +380,7 @@ bool MqttProtocol::OpenAudioChannel() {
     }
     {
         std::lock_guard<std::mutex> lock(channel_mutex_);
-        udp_ = std::move(udp);
+        udp_.reset(udp);
     }
 
     if (on_audio_channel_opened_ != nullptr) {
